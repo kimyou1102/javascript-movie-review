@@ -126,7 +126,7 @@ async function getFetchData(url) {
   const response = await fetch(url, {
     method: "GET",
     headers: {
-      Authorization: `Bearer ${void 0}`
+      Authorization: `Bearer ${"eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIzNTI1NWE1YTJlMTg4NDg2MGRhZDEwNWE5YjBhNDg2ZSIsIm5iZiI6MTc0MjI3MjQ4Ny4wNzgsInN1YiI6IjY3ZDhmN2U3YmI0MzM5NTFhNzM2NTMwOSIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.k0QMsKwC8spe0-5uOU_QprzUuGlPTQoRUpi2t5ywK1A"}`
     }
   });
   if (!response.ok) {
