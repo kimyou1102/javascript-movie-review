@@ -8,7 +8,7 @@ var __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot
 var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj));
 var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
 var __privateSet = (obj, member, value, setter) => (__accessCheck(obj, member, "write to private field"), setter ? setter.call(obj, value) : member.set(obj, value), value);
-var _rate, _movieId, _movie, _isLoading, _show, _movies, _isLoading2, _searchKeyword, _page, _searchPage, _mode, _lastPage, _movieId2, _searchKeyword2, _mode2;
+var _rate, _movieId, _movie, _movie2, _isLoading, _show, _movies, _isLoading2, _searchKeyword, _page, _searchPage, _mode, _lastPage, _movieId2, _searchKeyword2, _mode2;
 (function polyfill() {
   const relList = document.createElement("link").relList;
   if (relList && relList.supports && relList.supports("modulepreload")) {
@@ -171,7 +171,32 @@ async function getFetchData(url) {
     }
   });
   if (!response.ok) {
-    throw new Error("HTTP-Error: " + response.status);
+    switch (response.status) {
+      case 400:
+        throw new Error("요청이 잘못되었습니다. 입력값을 확인해주세요.");
+      case 401:
+        throw new Error("인증이 필요합니다. 다시 로그인해주세요.");
+      case 403:
+        throw new Error("접근 권한이 없습니다.");
+      case 404:
+        throw new Error("요청한 정보를 찾을 수 없습니다.");
+      case 429:
+        throw new Error("요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
+      case 500:
+        throw new Error("서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      case 502:
+        throw new Error("잘못된 게이트웨이입니다. 다시 시도해주세요.");
+      case 503:
+        throw new Error("서비스가 일시적으로 중단되었습니다.");
+      case 504:
+        throw new Error(
+          "서버 응답이 지연되고 있습니다. 나중에 다시 시도해주세요."
+        );
+      default:
+        throw new Error(
+          `알 수 없는 오류가 발생했습니다. (code: ${response.status})`
+        );
+    }
   }
   const jsonData = await response.json();
   return jsonData;
@@ -300,7 +325,7 @@ class Rate {
     });
     this.$target = $target;
     __privateSet(this, _movieId, movieId);
-    __privateSet(this, _rate, this.getRateByMovieId(MOVIE_REVIEW) ?? 0);
+    __privateSet(this, _rate, this.getRateByMovieId() ?? 0);
   }
   getRateByMovieId() {
     const movieRate = getItem(MOVIE_REVIEW);
@@ -324,8 +349,10 @@ class Rate {
               </button>`
     ).join("")}
     </div>
-    <span class="rate-text">${this.getRateText(__privateGet(this, _rate))}</span>
-    <span class="rate-number">${__privateGet(this, _rate) === 0 ? "" : `(${__privateGet(this, _rate)}/10)`}</span>
+    <div class="rate-text-wrap">
+      <span class="rate-text">${this.getRateText(__privateGet(this, _rate))}</span>
+      <span class="rate-number">${__privateGet(this, _rate) === 0 ? "" : `(${__privateGet(this, _rate)}/10)`}</span>
+    </div>
       `;
     $div.addEventListener("click", this.handleRateButtonClick);
     this.$target.appendChild($div);
@@ -344,28 +371,119 @@ class Rate {
 }
 _rate = new WeakMap();
 _movieId = new WeakMap();
-class Modal {
-  constructor($target, movieId) {
+class Spinner {
+  constructor($target) {
+    this.$target = $target;
+  }
+  render() {
+    const $orbitSpinner = document.createElement("div");
+    $orbitSpinner.classList.add("orbit-spinner");
+    $orbitSpinner.style.scale = "1";
+    const $planet = document.createElement("div");
+    $planet.classList.add("planet");
+    const $orbit = document.createElement("div");
+    $orbit.classList.add("orbit");
+    const $satellite1 = document.createElement("div");
+    $satellite1.classList.add("satellite", "satellite-1");
+    const $satellite2 = document.createElement("div");
+    $satellite2.classList.add("satellite", "satellite-2");
+    $orbit.appendChild($satellite1);
+    $orbit.appendChild($satellite2);
+    $orbitSpinner.appendChild($planet);
+    $orbitSpinner.appendChild($orbit);
+    this.$target.appendChild($orbitSpinner);
+  }
+}
+class MovieDescription {
+  constructor($target, movie) {
     __privateAdd(this, _movie);
+    this.$target = $target;
+    __privateSet(this, _movie, movie);
+  }
+  render() {
+    const { title, vote_average, genres, release_date, id, overview } = __privateGet(this, _movie);
+    const $modalDescription = document.createElement("div");
+    $modalDescription.classList.add("modal-description");
+    const $title = document.createElement("h2");
+    $title.textContent = this.title;
+    const $category = document.createElement("p");
+    $category.classList.add("category");
+    $category.textContent = `${release_date.substr(0, 4)} · ${genres.map((genre) => genre.name).join(", ")}`;
+    const $averageContainer = document.createElement("div");
+    $averageContainer.classList.add("average-container");
+    const $averageInfoText = document.createElement("span");
+    $averageInfoText.classList.add("average-info-text");
+    $averageInfoText.textContent = "평균";
+    const $rate = document.createElement("p");
+    $rate.classList.add("rate");
+    const $starImg = document.createElement("img");
+    $starImg.src = "./images/star_filled.png";
+    $starImg.classList.add("star");
+    const $rateSpan = document.createElement("span");
+    $rateSpan.textContent = vote_average.toFixed(1);
+    $rate.appendChild($starImg);
+    $rate.appendChild($rateSpan);
+    $averageContainer.appendChild($averageInfoText);
+    $averageContainer.appendChild($rate);
+    const $hr = document.createElement("hr");
+    const $infoText = document.createElement("p");
+    $infoText.classList.add("info-text");
+    $infoText.textContent = "내 별점";
+    const $rateContainer = document.createElement("div");
+    $rateContainer.classList.add("rate-container");
+    $modalDescription.appendChild($title);
+    $modalDescription.appendChild($category);
+    $modalDescription.appendChild($averageContainer);
+    $modalDescription.appendChild($hr);
+    $modalDescription.appendChild($infoText);
+    $modalDescription.appendChild($rateContainer);
+    new Rate($modalDescription.querySelector(".rate-container"), id).render();
+    const $hr2 = document.createElement("hr");
+    const $overviewText = document.createElement("p");
+    $overviewText.classList.add("info-text");
+    $overviewText.textContent = "줄거리";
+    const $detail = document.createElement("p");
+    $detail.classList.add("detail");
+    $detail.textContent = overview;
+    $modalDescription.append($hr2, $overviewText, $detail);
+    this.$target.appendChild($modalDescription);
+  }
+}
+_movie = new WeakMap();
+const _Modal = class _Modal {
+  constructor($target, setMovieId) {
+    __privateAdd(this, _movie2);
     __privateAdd(this, _isLoading);
     __privateAdd(this, _show);
+    __publicField(this, "handleKeyDown", (e) => {
+      if (e.key === "Escape") {
+        this.handleCloseButtonClick();
+      }
+    });
     __publicField(this, "handleModalBackClick", (e) => {
       if (!e.target.closest(".modal") && !e.target.closest(".rating-selector")) {
         this.handleCloseButtonClick();
       }
     });
     __publicField(this, "handleCloseButtonClick", () => {
+      this.setMovieId(void 0);
       this.$div.classList.remove("active");
     });
     this.$target = $target;
-    this.movieId = movieId;
-    __privateGet(this, _movie);
+    this.setMovieId = setMovieId;
+    __privateGet(this, _movie2);
     __privateSet(this, _show, false);
     __privateSet(this, _isLoading, false);
     this.$div;
   }
-  async init() {
-    if (this.movieId) {
+  async init(movieId) {
+    if (_Modal.currentKeydownHandler) {
+      document.removeEventListener("keydown", _Modal.currentKeydownHandler);
+    }
+    document.addEventListener("keydown", this.handleKeyDown);
+    _Modal.currentKeydownHandler = this.handleKeyDown;
+    this.movieId = movieId;
+    if (this.movieId && !__privateGet(this, _movie2) || __privateGet(this, _movie2) && this.movieId && __privateGet(this, _movie2).id !== this.movieId) {
       const movieDetail = await this.getMovieDetailData();
       this.setMovie(movieDetail);
     }
@@ -379,7 +497,7 @@ class Modal {
     this.render();
   }
   setMovie(newMovie) {
-    __privateSet(this, _movie, newMovie);
+    __privateSet(this, _movie2, newMovie);
     this.render();
   }
   async getMovieDetailData() {
@@ -393,35 +511,32 @@ class Modal {
     }
   }
   render() {
+    this.$target.innerHTML = "";
     this.$div = document.createElement("div");
     this.$div.classList.add("modal-background");
     this.$div.id = "modalBackground";
     this.$div.addEventListener("click", this.handleModalBackClick);
     if (__privateGet(this, _show)) this.$div.classList.add("active");
     if (__privateGet(this, _isLoading)) {
-      this.$div.innerHTML = `
-      <div class="modal loading">
-        <button class="close-modal" id="closeModal">
-          <img src="./images/modal_button_close.png" />
-        </button>
-        <div class="modal-container">
-          <div class="orbit-spinner" style="scale: 1">
-            <div class="planet"></div>
-            <div class="orbit">
-              <div class="satellite satellite-1"></div>
-              <div class="satellite satellite-2"></div>
-            </div>
-          </div>
-        </div>
-      </div>`;
+      const $modal2 = document.createElement("div");
+      $modal2.className = "modal loading";
+      const $closeButton2 = document.createElement("button");
+      $closeButton2.classList.add("close-modal");
+      $closeButton2.id = "closeModal";
+      const $img2 = document.createElement("img");
+      $img2.setAttribute("src", "./images/modal_button_close.png");
+      $closeButton2.appendChild($img2);
+      $closeButton2.addEventListener("click", this.handleCloseButtonClick);
+      const $modalContainer2 = document.createElement("div");
+      $modalContainer2.classList.add("modal-container");
+      $modal2.appendChild($closeButton2);
+      new Spinner($modalContainer2).render();
+      $modal2.appendChild($modalContainer2);
+      this.$div.appendChild($modal2);
       this.$target.appendChild(this.$div);
       return;
     }
-    if (!__privateGet(this, _isLoading)) {
-      const $el = document.querySelector(".modal-background");
-      $el.remove();
-    }
-    if (!__privateGet(this, _movie)) return;
+    if (!__privateGet(this, _movie2) || !this.movieId) return;
     const {
       title,
       poster_path,
@@ -430,66 +545,39 @@ class Modal {
       release_date,
       overview,
       id
-    } = __privateGet(this, _movie);
+    } = __privateGet(this, _movie2);
     const $modal = document.createElement("div");
     $modal.classList.add("modal");
     const $closeButton = document.createElement("button");
     $closeButton.classList.add("close-modal");
     $closeButton.id = "closeModal";
-    $closeButton.innerHTML = /*html*/
-    `
-        <img src="./images/modal_button_close.png" />
-    `;
+    const $img = document.createElement("img");
+    $img.setAttribute("src", "./images/modal_button_close.png");
+    $closeButton.appendChild($img);
     $closeButton.addEventListener("click", this.handleCloseButtonClick);
     const $modalContainer = document.createElement("div");
     $modalContainer.classList.add("modal-container");
-    $modalContainer.innerHTML = /*html*/
-    `
-        <div class="modal-image">
-          <img
-            src=${`https://image.tmdb.org/t/p/w300${poster_path}`}
-          />
-        </div>
-
-    `;
-    const $modalDescription = document.createElement("div");
-    $modalDescription.classList.add("modal-description");
-    $modalDescription.innerHTML = /*html*/
-    `
-        <h2>${title}</h2>
-        <p class="category">
-        ${release_date.substr(0, 4)} · ${genres.map((genre) => genre.name).join(", ")}
-        </p>
-        <div class="average-container">
-            <span class="average-info-text">평균</span>
-            <p class="rate">
-              <img src="./images/star_filled.png" class="star" />
-              <span>${vote_average.toFixed(1)}</span>
-            </p>
-        </div>
-        <hr />
-        <p class="info-text">내 별점</p>
-        <div class="rate-container"></div>
-    `;
-    $modalContainer.appendChild($modalDescription);
-    new Rate($modalDescription.querySelector(".rate-container"), id).render();
-    const $hr = document.createElement("hr");
-    const $overviewText = document.createElement("p");
-    $overviewText.classList.add("info-text");
-    $overviewText.textContent = "줄거리";
-    const $detail = document.createElement("p");
-    $detail.classList.add("detail");
-    $detail.textContent = overview;
-    $modalDescription.append($hr, $overviewText, $detail);
+    const $modalImageDiv = document.createElement("div");
+    $modalImageDiv.classList.add("modal-image");
+    const $modalImg = document.createElement("img");
+    $modalImg.setAttribute(
+      "src",
+      `https://image.tmdb.org/t/p/w300${poster_path}`
+    );
+    $modalContainer.appendChild($modalImageDiv);
+    $modalImageDiv.appendChild($modalImg);
+    new MovieDescription($modalContainer, __privateGet(this, _movie2)).render();
     $modal.appendChild($closeButton);
     $modal.appendChild($modalContainer);
     this.$div.appendChild($modal);
     this.$target.appendChild(this.$div);
   }
-}
-_movie = new WeakMap();
+};
+_movie2 = new WeakMap();
 _isLoading = new WeakMap();
 _show = new WeakMap();
+__publicField(_Modal, "currentKeydownHandler", null);
+let Modal = _Modal;
 const MOVIE = {
   MAX_MOVIES_PER_PAGE: 20
 };
@@ -616,7 +704,7 @@ class MoviesCotainer {
     __privateSet(this, _mode, mode);
     this.$target = $target;
     __privateSet(this, _lastPage, 0);
-    __privateSet(this, _movieId2, 0);
+    this.renderModal();
   }
   async init() {
     if (__privateGet(this, _searchKeyword) !== "") {
@@ -636,6 +724,13 @@ class MoviesCotainer {
     }
     this.setLastPage(totalPage);
     this.setMovies([...__privateGet(this, _movies), ...results]);
+  }
+  renderModal() {
+    const $body = document.querySelector("body");
+    const $modalContainer = document.createElement("div");
+    $modalContainer.classList.add("modal-background-container");
+    $body.appendChild($modalContainer);
+    this.modal = new Modal($modalContainer, this.setMovieId);
   }
   setLastPage(lastPage) {
     __privateSet(this, _lastPage, lastPage);
@@ -674,10 +769,11 @@ class MoviesCotainer {
     this.$target.innerHTML = "";
     const $container = document.createElement("div");
     $container.classList.add("container");
-    const $main = document.createElement("main");
     if (__privateGet(this, _searchKeyword) === "") {
       new Thumbnail(__privateGet(this, _movies)[0], this.$target, this.setMovieId).render();
     }
+    if (__privateGet(this, _searchKeyword) !== "") $container.classList.add("margin-top");
+    const $main = document.createElement("main");
     const $div = document.createElement("div");
     new MovieListSection(
       __privateGet(this, _searchKeyword),
@@ -691,17 +787,7 @@ class MoviesCotainer {
     $container.appendChild($main);
     $main.appendChild($div);
     this.$target.appendChild($container);
-    const $body = document.querySelector("body");
-    const $modalContainer = document.createElement("div");
-    $modalContainer.classList.add("modal-background-container");
-    const $el = document.querySelector(".modal-background-container");
-    if ($el) {
-      $modalContainer.innerHTML = "";
-      $el.remove();
-    }
-    $body.appendChild($modalContainer);
-    const modal = new Modal($modalContainer, __privateGet(this, _movieId2));
-    modal.init();
+    this.modal.init(__privateGet(this, _movieId2));
   }
 }
 _movies = new WeakMap();
@@ -746,17 +832,10 @@ class App {
       __privateGet(this, _mode2),
       $container
     );
-    await moviesContainer.init();
     body.appendChild($wrap);
     $wrap.appendChild($container);
     new Footer(body).render();
-    document.addEventListener("keydown", (e) => {
-      const $modalBg = document.querySelector("#modalBackground");
-      if (!$modalBg) return;
-      if ($modalBg.classList.contains("active") && e.key === "Escape") {
-        $modalBg.classList.remove("active");
-      }
-    });
+    moviesContainer.init();
   }
 }
 _searchKeyword2 = new WeakMap();
